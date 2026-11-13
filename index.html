@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Какой ты леденец?</title>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pastel-pink: #ffb6c1;
+            --pastel-blue: #aec6cf;
+            --pastel-purple: #c3b1e1;
+            --neon-glow: 0 0 15px 5px rgba(255, 182, 193, 0.8);
+            --card-bg: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Кастомный курсор-леденец (SVG base64 для надежности) */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'EB Garamond', serif;
+            background: url('bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: #4a4a4a;
+            overflow-x: hidden;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><path fill="%23ff69b4" d="M12 2a6 6 0 0 0-6 6c0 2.5 1.5 4.6 3.6 5.5v8.5a1.5 1.5 0 0 0 3 0v-8.5c2.1-.9 3.6-3 3.6-5.5a6 6 0 0 0-6-6zm0 10a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/><circle cx="12" cy="8" r="2" fill="%2387ceeb"/></svg>') 16 16, auto;
+        }
+
+        /* Общие стили контейнеров (Глассморфизм) */
+        .screen {
+            display: none;
+            min-height: 100vh;
+            width: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 30px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Кнопки */
+        button {
+            font-family: 'EB Garamond', serif;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 30px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--pastel-pink), var(--pastel-blue));
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn-start:hover {
+            box-shadow: var(--neon-glow);
+            transform: scale(1.05);
+        }
+
+        /* Экран вопросов */
+        .question-text {
+            font-size: 1.8rem;
+            margin-bottom: 30px;
+            color: #5d3a5a;
+        }
+
+        .options-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.8);
+            color: #4a4a4a;
+            border: 2px solid transparent;
+            text-align: left;
+        }
+
+        .option-btn:hover {
+            background: white;
+            border-color: var(--pastel-pink);
+            box-shadow: var(--neon-glow);
+            transform: translateX(10px);
+        }
+
+        /* Панель управления (прогресс, назад, рандом) */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            background: var(--pastel-purple);
+            color: white;
+            padding: 10px 20px;
+            font-size: 1rem;
+        }
+
+        .btn-small:hover {
+            box-shadow: 0 0 10px 3px rgba(195, 177, 225, 0.8);
+        }
+
+        /* Прогресс бар */
+        .progress-container {
+            flex-grow: 1;
+            text-align: center;
+            font-weight: 600;
+            color: #5d3a5a;
+        }
+
+        .progress-bar-bg {
+            background: rgba(255,255,255,0.5);
+            border-radius: 20px;
+            height: 15px;
+            width: 100%;
+            margin-top: 10px;
+            overflow: hidden;
+            border: 1px solid white;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, var(--pastel-pink), var(--pastel-blue));
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease-in-out;
+        }
+
+        /* Экран результатов */
+        .result-layout {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            text-align: left;
+        }
+
+        .result-image-container {
+            flex: 0 0 40%;
+        }
+
+        .result-image-container img {
+            width: 100%;
+            border-radius: 20px;
+            box-shadow: 0 0 25px 10px rgba(255, 182, 193, 0.9); /* Неоновая пастельно-розовая подсветка */
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .result-text-container {
+            flex: 1;
+            font-size: 1.3rem;
+            line-height: 1.6;
+            color: #4a4a4a;
+        }
+
+        .mix-alert {
+            color: #d87093;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+
+        /* Анимации перелета (flying) */
+        .fly-in {
+            animation: flyIn 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        .fly-out {
+            animation: flyOut 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes flyIn {
+            0% { transform: translateX(100vw) rotate(5deg); opacity: 0; }
+            100% { transform: translateX(0) rotate(0); opacity: 1; }
+        }
+
+        @keyframes flyOut {
+            0% { transform: translateX(0) rotate(0); opacity: 1; }
+            100% { transform: translateX(-100vw) rotate(-5deg); opacity: 0; }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        /* Адаптив */
+        @media (max-width: 768px) {
+            .result-layout {
+                flex-direction: column;
+                text-align: center;
+            }
+            .result-image-container {
+                flex: 0 0 100%;
+                max-width: 300px;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            .progress-container {
+                order: -1;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Стартовый экран -->
+    <div id="start-screen" class="screen active">
+        <button class="btn-start" onclick="startGame()">НАЧАТЬ</button>
+    </div>
+
+    <!-- Экран викторины -->
+    <div id="quiz-screen" class="screen">
+        <div id="quiz-container" class="glass-panel">
+            <div id="question-title" class="question-text">Вопрос</div>
+            <div id="options-container" class="options-grid"></div>
+            
+            <div class="controls">
+                <button class="btn-small" id="btn-back" onclick="prevQuestion()">⬅ Назад</button>
+                
+                <div class="progress-container">
+                    <span id="progress-text">1 из 20</span>
+                    <div class="progress-bar-bg">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <button class="btn-small" onclick="randomAnswer()">Случайный выбор 🎲</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Экран результата -->
+    <div id="result-screen" class="screen">
+        <div class="glass-panel">
+            <div class="result-layout">
+                <div class="result-image-container">
+                    <img id="result-img" src="" alt="Твой леденец">
+                </div>
+                <div class="result-text-container">
+                    <div id="mix-alert" class="mix-alert" style="display: none;">
+                        ✨ У тебя ничья! Ты — микс нескольких вкусов, но вот твой основной:
+                    </div>
+                    <div id="result-desc"></div>
+                    <br>
+                    <button class="btn-start" onclick="location.reload()" style="font-size: 1.1rem; padding: 10px 20px;">Пройти еще раз</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                q: "1. Как начинается твоё идеальное утро?",
+                options: [
+                    { text: "Чашка чая и привычная музыка — ничего не меняю годами", val: "A" },
+                    { text: "Яркий будильник, прыжок из кровати, сторис в соцсети!", val: "B" },
+                    { text: "Поздний подъём, саркастичный комментарий в чат и крепкий кофе", val: "C" },
+                    { text: "Зарядка, планирование дня, всё по расписанию", val: "D" },
+                    { text: "Завтрак для всей семьи, тёплые разговоры на кухне", val: "E" },
+                    { text: "Проснуться от лучей солнца и записать приснившийся сон", val: "F" }
+                ]
+            },
+            {
+                q: "2. Ты пришёл в новую компанию. Твои действия?",
+                options: [
+                    { text: "Найду одного спокойного человека и буду держаться рядом", val: "A" },
+                    { text: "Через пять минут уже в центре внимания и рассказываю байку", val: "B" },
+                    { text: "Сяду в углу и буду наблюдать — пусть сами подходят", val: "C" },
+                    { text: "Вежливо представлюсь, поддержу разговор, но без фанатизма", val: "D" },
+                    { text: "Узнаю, кто здесь новенький, и постараюсь всех познакомить", val: "E" },
+                    { text: "Улыбнусь кому-то, кто покажется родственной душой", val: "F" }
+                ]
+            },
+            {
+                q: "3. Твой любимый сезон?",
+                options: [
+                    { text: "Лето — как в детстве, каникулы и свобода", val: "A" },
+                    { text: "Весна — всё просыпается, столько энергии!", val: "B" },
+                    { text: "Поздняя осень — дождь, ветер, никто не лезет с вопросами", val: "C" },
+                    { text: "Зима — чистота, тишина, порядок", val: "D" },
+                    { text: "Декабрь — праздники, подарки, огоньки", val: "E" },
+                    { text: "Ранняя осень — золотые листья и лёгкая грусть", val: "F" }
+                ]
+            },
+            {
+                q: "4. Что ты выберешь в кафе?",
+                options: [
+                    { text: "То, что беру всегда, — зачем экспериментировать?", val: "A" },
+                    { text: "Самое яркое и необычное в меню — хочу попробовать всё!", val: "B" },
+                    { text: "Что-то с перцем или необычным соусом — поострее", val: "C" },
+                    { text: "Простой чёрный кофе и круассан — лаконично и вкусно", val: "D" },
+                    { text: "Домашний пирог и какао — чтобы было уютно", val: "E" },
+                    { text: "Лавандовый раф и чизкейк — красиво и нежно", val: "F" }
+                ]
+            },
+            {
+                q: "5. Как тебя чаще всего описывают друзья?",
+                options: [
+                    { text: "«Надёжный как скала»", val: "A" },
+                    { text: "«С ним/ней никогда не скучно!»", val: "B" },
+                    { text: "«Острый на язык, но честный»", val: "C" },
+                    { text: "«Самый рассудительный из нас»", val: "D" },
+                    { text: "«Душа компании, всегда поможет»", val: "E" },
+                    { text: "«Немного не от мира сего, но это прекрасно»", val: "F" }
+                ]
+            },
+            {
+                q: "6. Твой стиль в одежде?",
+                options: [
+                    { text: "Классика и проверенные вещи — джинсы, футболка, кеды", val: "A" },
+                    { text: "Тренды, яркие цвета, аксессуары — я люблю выделяться", val: "B" },
+                    { text: "Чёрный, кожа, грубые ботинки — пусть боятся", val: "C" },
+                    { text: "Минимализм, нейтральные тона, капсульный гардероб", val: "D" },
+                    { text: "Мягкие свитера, шарфы, тёплые оттенки", val: "E" },
+                    { text: "Лёгкие ткани, пастельные тона, винтажные находки", val: "F" }
+                ]
+            },
+            {
+                q: "7. Как ты справляешься со стрессом?",
+                options: [
+                    { text: "Включаю старый любимый фильм и успокаиваюсь", val: "A" },
+                    { text: "Звоню друзьям, устраиваю спонтанную вечеринку", val: "B" },
+                    { text: "Выплёскиваю эмоции — спорт, крик, жёсткий разговор", val: "C" },
+                    { text: "Составляю план решения проблемы и действую по пунктам", val: "D" },
+                    { text: "Обнимаю близких, готовлю что-то вкусное", val: "E" },
+                    { text: "Ухожу в себя: рисую, слушаю музыку, гуляю одна/один", val: "F" }
+                ]
+            },
+            {
+                q: "8. Идеальный вечер пятницы?",
+                options: [
+                    { text: "Дом, плед, сериал, который я уже видел(а) три раза", val: "A" },
+                    { text: "Клуб, бар, караоке — гулять до утра!", val: "B" },
+                    { text: "Спортивный зал или экстремальное развлечение", val: "C" },
+                    { text: "Книга, ванна, ранний отбой — завтра продуктивный день", val: "D" },
+                    { text: "Ужин с семьёй или близкими друзьями за большим столом", val: "E" },
+                    { text: "Свечи, поэзия, долгий разговор о смысле жизни", val: "F" }
+                ]
+            },
+            {
+                q: "9. Что для тебя важнее всего в отношениях?",
+                options: [
+                    { text: "Верность и стабильность — я не люблю сюрпризов", val: "A" },
+                    { text: "Драйв и общие приключения", val: "B" },
+                    { text: "Честность, даже если она неприятная", val: "C" },
+                    { text: "Взаимное уважение личных границ", val: "D" },
+                    { text: "Забота, тепло и ощущение дома", val: "E" },
+                    { text: "Глубокая эмоциональная связь и понимание без слов", val: "F" }
+                ]
+            },
+            {
+                q: "10. Какой цвет тебе ближе?",
+                options: [
+                    { text: "Тёплый оранжевый", val: "A" },
+                    { text: "Кислотно-жёлтый или фуксия", val: "B" },
+                    { text: "Чёрный или тёмно-зелёный", val: "C" },
+                    { text: "Белый или серый", val: "D" },
+                    { text: "Красный или бордовый", val: "E" },
+                    { text: "Нежно-розовый или лавандовый", val: "F" }
+                ]
+            },
+            {
+                q: "11. Как ты принимаешь важные решения?",
+                options: [
+                    { text: "Опираюсь на опыт — как было раньше, так и сделаю", val: "A" },
+                    { text: "По наитию! Жизнь слишком коротка для раздумий", val: "B" },
+                    { text: "Иду против всех советов — мне лучше знать", val: "C" },
+                    { text: "Анализирую все «за» и «против» в таблице", val: "D" },
+                    { text: "Советуюсь с близкими — их мнение для меня закон", val: "E" },
+                    { text: "Прислушиваюсь к интуиции и жду «знак»", val: "F" }
+                ]
+            },
+            {
+                q: "12. Что тебя больше всего раздражает?",
+                options: [
+                    { text: "Когда всё вокруг слишком быстро меняется", val: "A" },
+                    { text: "Скучные люди и рутина", val: "B" },
+                    { text: "Лицемерие и фальшь", val: "C" },
+                    { text: "Хаос и неорганизованность", val: "D" },
+                    { text: "Равнодушие и чёрствость", val: "E" },
+                    { text: "Грубость и отсутствие такта", val: "F" }
+                ]
+            },
+            {
+                q: "13. Если бы у тебя была суперсила, какая?",
+                options: [
+                    { text: "Останавливать время — чтобы всё успевать по-старому", val: "A" },
+                    { text: "Телепортация — хочу быть везде одновременно!", val: "B" },
+                    { text: "Чтение мыслей — чтобы знать, кто врёт", val: "C" },
+                    { text: "Суперинтеллект — логика решает всё", val: "D" },
+                    { text: "Исцеление — чтобы никто из близких не болел", val: "E" },
+                    { text: "Управление погодой — подстраивать мир под настроение", val: "F" }
+                ]
+            },
+            {
+                q: "14. Какой фильм ты можешь пересматривать бесконечно?",
+                options: [
+                    { text: "Старая добрая комедия из 90-х", val: "A" },
+                    { text: "Яркий мюзикл или блокбастер с кучей спецэффектов", val: "B" },
+                    { text: "Чёрная комедия или триллер с неожиданным финалом", val: "C" },
+                    { text: "Документальный фильм или умная драма", val: "D" },
+                    { text: "Рождественская классика — «Один дома» и подобные", val: "E" },
+                    { text: "Что-то атмосферное и меланхоличное, например «Амели»", val: "F" }
+                ]
+            },
+            {
+                q: "15. Как ты проводишь отпуск?",
+                options: [
+                    { text: "На даче или в проверенном санатории — зачем рисковать?", val: "A" },
+                    { text: "Фестивали, новые страны, автостоп — максимум впечатлений!", val: "B" },
+                    { text: "Один/одна, в глуши, без связи и людей", val: "C" },
+                    { text: "Чёткий маршрут, забронированные отели, список достопримечательностей", val: "D" },
+                    { text: "Большая семейная поездка — чем больше народу, тем веселее", val: "E" },
+                    { text: "Маленький европейский городок, блокнот для зарисовок, кофе", val: "F" }
+                ]
+            },
+            {
+                q: "16. Твой жизненный девиз?",
+                options: [
+                    { text: "«Старый друг лучше новых двух»", val: "A" },
+                    { text: "«Живи ярко, гори, но не сгорай!»", val: "B" },
+                    { text: "«Лучше горькая правда, чем сладкая ложь»", val: "C" },
+                    { text: "«Порядок в голове — порядок в жизни»", val: "D" },
+                    { text: "«Счастье — это когда все дома»", val: "E" },
+                    { text: "«Красота спасёт мир, а нежность — меня»", val: "F" }
+                ]
+            },
+            {
+                q: "17. Что ты больше всего ценишь в людях?",
+                options: [
+                    { text: "Преданность и постоянство", val: "A" },
+                    { text: "Энергию и чувство юмора", val: "B" },
+                    { text: "Смелость быть собой", val: "C" },
+                    { text: "Ум и самодисциплину", val: "D" },
+                    { text: "Доброту и щедрость", val: "E" },
+                    { text: "Чувствительность и творческий взгляд на мир", val: "F" }
+                ]
+            },
+            {
+                q: "18. Как ты реагируешь на критику?",
+                options: [
+                    { text: "Расстраиваюсь, но молчу — не люблю конфликты", val: "A" },
+                    { text: "Отшучиваюсь и тут же забываю", val: "B" },
+                    { text: "Даю жёсткий ответ — сам(а) не идеален!", val: "C" },
+                    { text: "Спокойно анализирую: есть ли в этом зерно?", val: "D" },
+                    { text: "Принимаю близко к сердцу, долго переживаю", val: "E" },
+                    { text: "Замыкаюсь в себе и пишу об этом в дневник", val: "F" }
+                ]
+            },
+            {
+                q: "19. Где бы ты хотел(а) жить?",
+                options: [
+                    { text: "В родном городе, в доме, где вырос(ла)", val: "A" },
+                    { text: "В мегаполисе, который никогда не спит", val: "B" },
+                    { text: "В горах или на краю света — подальше от всех", val: "C" },
+                    { text: "В современном умном доме с идеальной системой", val: "D" },
+                    { text: "В большом загородном доме с камином и садом", val: "E" },
+                    { text: "В маленькой мастерской на крыше в Париже", val: "F" }
+                ]
+            },
+            {
+                q: "20. Что для тебя счастье?",
+                options: [
+                    { text: "Когда всё идёт по плану и ничего не ломается", val: "A" },
+                    { text: "Адреналин, смех и ощущение, что жизнь кипит", val: "B" },
+                    { text: "Свобода и независимость от чужого мнения", val: "C" },
+                    { text: "Гармония, баланс и чёткое понимание целей", val: "D" },
+                    { text: "Объятия любимых людей и запах домашней еды", val: "E" },
+                    { text: "Момент вдохновения, когда весь мир замирает", val: "F" }
+                ]
+            }
+        ];
+
+        const resultsData = {
+            A: { img: "result_A.png", text: "Ты — воплощение классики и надёжности. Как тот самый карамельный петушок из детства, ты даришь окружающим чувство тепла и стабильности. Тебя не испугать модой и трендами — ты знаешь, что настоящее не стареет. Друзья ценят тебя за верность, а близкие знают: на тебя всегда можно положиться. Ты — вкус, который никогда не надоедает." },
+            B: { img: "result_B.png", text: "Ты — яркий, сочный и невероятно энергичный! Как Чупа-Чупс в самой кричащей обёртке, ты притягиваешь взгляды и заряжаешь всех вокруг. Рутина — твой главный враг, а приключения — топливо. Ты умеешь сделать праздник из обычного вторника и никогда не даёшь друзьям заскучать. Жизнь с тобой — это фейерверк вкусов!" },
+            C: { img: "result_C.png", text: "Ты — дерзкий, острый и абсолютно неповторимый. Как кислый леденец, ты с первой секунды вызываешь сильную реакцию: кто-то морщится, а кто-то в полном восторге. Ты не боишься говорить правду, идти против течения и ломать шаблоны. За твоей колючей оболочкой скрывается невероятно честный и смелый человек. Не для всех — но для своих ты бесценен." },
+            D: { img: "result_D.png", text: "Ты — само спокойствие и ясность. Как мятный леденец, ты освежаешь и приводишь в чувство тех, кто рядом. В хаосе ты — островок порядка, в панике — голос разума. Твой минималистичный подход к жизни вызывает уважение, а умение всё разложить по полочкам — восхищение. Ты тот человек, к которому приходят за советом, когда всё идёт не так." },
+            E: { img: "result_E.png", text: "Ты — самый тёплый и уютный леденец на свете. Как праздничная трость, ты ассоциируешься с домом, семьёй и волшебством. Твоя забота окутывает, как плед зимним вечером. Ты из тех, кто помнит дни рождения всех родственников, печёт пироги «просто так» и верит, что главное в жизни — это люди рядом. С тобой каждый день — маленький праздник." },
+            F: { img: "result_F.png", text: "Ты — нежный, мечтательный и невероятно глубокий. Как леденец «Барбарис», ты обладаешь сложным, многогранным вкусом, который раскрывается не сразу. Ты видишь красоту там, где другие проходят мимо, чувствуешь мир тоньше остальных и не боишься своих эмоций. Твоя чувствительность — не слабость, а суперсила. Ты — леденец для настоящих ценителей." }
+        };
+
+        let currentQuestion = 0;
+        let userAnswers = [];
+
+        function startGame() {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('quiz-screen').classList.add('active');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const container = document.getElementById('quiz-container');
+            
+            // Анимация прилета
+            container.classList.remove('fly-in');
+            void container.offsetWidth; // trigger reflow
+            container.classList.add('fly-in');
+
+            const q = questions[currentQuestion];
+            document.getElementById('question-title').innerText = q.q;
+            
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => selectAnswer(opt.val);
+                optionsContainer.appendChild(btn);
+            });
+
+            // Обновление прогресса
+            document.getElementById('progress-text').innerText = `${currentQuestion + 1} из ${questions.length}`;
+            document.getElementById('progress-fill').style.width = `${((currentQuestion + 1) / questions.length) * 100}%`;
+
+            // Кнопка назад
+            document.getElementById('btn-back').style.visibility = currentQuestion > 0 ? 'visible' : 'hidden';
+        }
+
+        function selectAnswer(val) {
+            userAnswers[currentQuestion] = val;
+            nextQuestion();
+        }
+
+        function randomAnswer() {
+            const randomVal = ['A', 'B', 'C', 'D', 'E', 'F'][Math.floor(Math.random() * 6)];
+            selectAnswer(randomVal);
+        }
+
+        function nextQuestion() {
+            const container = document.getElementById('quiz-container');
+            container.classList.add('fly-out');
+            
+            setTimeout(() => {
+                container.classList.remove('fly-out');
+                if (currentQuestion < questions.length - 1) {
+                    currentQuestion++;
+                    renderQuestion();
+                } else {
+                    showResult();
+                }
+            }, 500); // время совпадает с CSS анимацией flyOut
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 0) {
+                const container = document.getElementById('quiz-container');
+                container.classList.add('fly-out'); // Для простоты используем ту же анимацию улета
+                setTimeout(() => {
+                    container.classList.remove('fly-out');
+                    currentQuestion--;
+                    renderQuestion();
+                }, 500);
+            }
+        }
+
+        function showResult() {
+            document.getElementById('quiz-screen').classList.remove('active');
+            document.getElementById('result-screen').classList.add('active');
+
+            // Подсчет результатов
+            const counts = { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 };
+            userAnswers.forEach(ans => counts[ans]++);
+
+            let maxVal = 0;
+            for (const key in counts) {
+                if (counts[key] > maxVal) maxVal = counts[key];
+            }
+
+            // Ищем победителей (проверка на ничью)
+            const winners = Object.keys(counts).filter(k => counts[k] === maxVal);
+            const finalResult = winners[0]; // Берем первого победителя как основного
+
+            if (winners.length > 1) {
+                document.getElementById('mix-alert').style.display = 'block';
+            }
+
+            const resData = resultsData[finalResult];
+            document.getElementById('result-img').src = resData.img;
+            document.getElementById('result-desc').innerHTML = resData.text;
+            
+            // Анимация появления результата
+            document.querySelector('.result-layout').classList.add('fly-in');
+        }
+    </script>
+</body>
+</html>
